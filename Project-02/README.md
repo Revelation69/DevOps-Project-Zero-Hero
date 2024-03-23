@@ -14,7 +14,7 @@ This project aims to develop a web-based application using the LAMP stack. The L
 
 ## Step-by-Step Implementation:
 
-### Step 1 - Installing nginn 
+### Step 1 - Installing nginx
 
 - Update package manager
 
