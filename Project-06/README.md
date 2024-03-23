@@ -291,7 +291,7 @@ CREATE DATABASE wordpress;
 - Create a MySQL user named `wordpress` who can access the `wordpress` database. Replace `Password01@` with a secure password of your choice:
 
 ```
-CREATE USER 'wordpress'@'%' IDENTIFIED BY 'Password01@';
+CREATE USER `wordpress`@`%` IDENTIFIED BY 'password';
 ```
 
 - Grant all privileges on the `wordpress` database to the `wordpress` user:
@@ -365,8 +365,6 @@ sudo apt update
 - Install Apache web server and PHP dependencies:
 
 ```
-sudo apt install apache2 
-
 #Install dependencies
 sudo apt install software-properties-common apt-transport-https -y
 
@@ -374,6 +372,7 @@ sudo apt install software-properties-common apt-transport-https -y
 sudo add-apt-repository ppa:ondrej/php -y
 
 #Now to install PHP 8.1 FPM and it's modules
+
 sudo apt install php8.1-fpm php8.1-common php8.1-mysql php8.1-xml php8.1-xmlrpc php8.1-curl php8.1-gd php8.1-imagick php8.1-cli php8.1-dev php8.1-imap php8.1-mbstring php8.1-opcache php8.1-soap php8.1-zip php8.1-intl php8.1-bcmath
 
 sudo apt install apache2 \
@@ -398,14 +397,6 @@ sudo apt install apache2 \
 sudo systemctl start apache2
 sudo systemctl enable apache2
 ```
-
-- Start and enable the PHP-FPM service to handle PHP requests from Apache:
-
-```
-sudo systemctl start php-fpm
-sudo systemctl enable php-fpm
-```
-
 
 - Create a directory to hold the downloaded WordPress files:
 
@@ -446,13 +437,13 @@ sudo cp wordpress/wp-config-sample.php wordpress/wp-config.php
 - Copy the entire WordPress directory structure to the web server's document root (/var/www/html):
 
 ```
-sudo cp -R /wordpress /var/www/html/
+sudo cp -R wordpress /var/www/html/
 ```
 
 - To ensure Apache has write access to the WordPress directory, change ownership to the Apache user:
 
 ```
-sudo chown -R apache:apache /var/www/html/wordpress
+sudo chown -R www-data:www-data /var/www/html/wordpress
 ```
 
 - Restart the Apache web server to apply any configuration changes and make WordPress accessible:
@@ -466,6 +457,8 @@ sudo systemctl restart apache2
 - Open a web browser and navigate to the public IP address or domain name of your web server instance, followed by /wordpress/wp-admin. You should see the WordPress login screen.
 
 - Use the MySQL username `(wordpress)` and password you created earlier to log in to the WordPress admin panel and complete the setup process.
+
+![wordpress](images/wordpress.png)
 
 ### Conclusion:
 
