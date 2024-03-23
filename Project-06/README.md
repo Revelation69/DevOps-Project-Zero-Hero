@@ -27,35 +27,43 @@ This project aims to deploy a web solution using WordPress on Ubuntu servers hos
 
 - Attach these volumes to the web server instance.
 
+![Volumes-Created](images/ebs-volumes.png)
+
 ### Step 3 - Verify EBS Volume Attachment (Web Server):
 
 - Connect to the web server instance
 
-- Use the command below to list all block devices and verify that the attached volumes (xvdf, xvdg, xvdh) are present.
+- Use the command below to list all block devices and verify that the attached volumes (xvdbf, xvdbg, xvdbh) are present.
 
 ```
 lsblk
 ```
+![Volumes were attached succefully](images/list-volumes.png)
 
 ### Step 4 - Partition EBS Volumes (Web Server):
 
 - Create a single partition on each of the 3 disks using the `gdisk`  command
 
 ```
-sudo gdisk /dev/xvdf 
-sudo gdisk /dev/xvdg 
-sudo gdisk /dev/xvdh
+sudo gdisk /dev/xvdbf 
+sudo gdisk /dev/xvdbg 
+sudo gdisk /dev/xvdbh
 ```
 
 Refer to the gdisk documentation for detailed usage:	[gdisk documentation](https://linux.die.net/man/8/gdisk).
 
 - Follow the interactive prompts to create partitions, ensuring sufficient space for Wordpress installation.
 
+![Follow the Prompt to create partition](images/Create-partition.png)
+
+Note do same for xvdbg and xvdbh
+
 - Verify the partitions
 
 ```
 lsblk
 ```
+![partitions created verified](images/verify-partitions.png)
 
 ### Step 5 - Install LVM Package (Web Server):
 
@@ -74,13 +82,14 @@ Use the command below to list all available physical partitions for LVM manageme
 ```
 sudo lvmdiskscan
 ```
+![Check Available Partitions](images/scan-lvm.png)
 
 ### Step 7 - Create Physical Volumes (Web Server):
 
 - Use the `sudo pvcreate` command to mark each of the newly created partitions as physical volumes (PVs) that LVM can use.
 
 ```
-sudo pvcreate /dev/xvdf1 /dev/xvdg1 /dev/xvdh1
+sudo pvcreate /dev/xvdbf1 /dev/xvdbg1 /dev/xvdbh1
 ```
 
 - Verify the physical volumes by running the comand below. which will list all available PVs.
@@ -89,19 +98,23 @@ sudo pvcreate /dev/xvdf1 /dev/xvdg1 /dev/xvdh1
 sudo pvs
 ```
 
+![Create Physical Volumes](images/create-pv.png)
+
 ### Step 8 - Create Volume Group (Web Server):
 
 - Use the `sudo vgcreate` command to create a volume group (VG) named webdata-vg that will combine the three PVs.
 
 ```
-sudo vgcreate webdata-vg /dev/xvdf1 /dev/xvdg1 /dev/xvdh1
+sudo vgcreate webdata-vg /dev/xvdbf1 /dev/xvdbg1 /dev/xvdbh1
 ```
 
-- verify the volume group created using:
+- Verify the volume group created using:
 
 ```
 sudo vgs
 ```
+
+![Create and verify Volume Group](images/create-vg.png)
 
 ### Step 9 -  Create Logical Volumes (Web Server):
 
@@ -119,6 +132,7 @@ sudo lvcreate -n logs-lv -L 14G webdata-vg
 ```
 sudo lvs
 ```
+![Create and verify logical volumes](images/Create-Lv.png)
 
 ### Step 10 - Format Logical Volumes (Web Server):
 
@@ -128,6 +142,7 @@ sudo lvs
 sudo mkfs.ext4 /dev/webdata-vg/apps-lv
 sudo mkfs.ext4 /dev/webdata-vg/logs-lv
 ```
+![Format Logical Volumes](images/Format-LV.png)
 
 ### Step 11 - Create Mount Points and Mount Logical Volumes (Web Server):
 
@@ -145,13 +160,18 @@ sudo mount /dev/webdata-vg/apps-lv /var/www/html/
 ```
 
 Before mounting the logs-lv volume for log files:
-Use rsync to back up existing log files from `/var/log`` to a secure location like `/home/recovery/logs`:
+Use rsync to back up existing log files from `/var/log` to a secure location like `/home/recovery/logs`:
 
+```
+sudo rsync -av /var/log/. /home/recovery/logs/
+```
+
+- Hence, mount /var/log on logs-lv logical volume
 ```
 sudo mount /dev/webdata-vg/logs-lv /var/log
 ```
 
-Now restore the previously backed-up logs from `/home/recovery/logs` back to `/var/log`:
+- Now restore the previously backed-up logs from `/home/recovery/logs` back to `/var/log`:
 
 ```
 sudo rsync -av /home/recovery/logs/. /var/log
@@ -167,17 +187,23 @@ sudo rsync -av /home/recovery/logs/. /var/log
 sudo blkid
 ```
 
+![Extract UUID](images/Extract-UUID.png)
+
 - Add entries for the logical volumes, replacing UUID with your device UUID.
 ```
 sudo vi /etc/fstab
 ```
-- save and close the fastab file
+
+![fstab](images/fstab.png)
+
+- Save and close the fastab file
 
 - verify that the mount configurations work as expected:
 
 ```
 sudo mount -a
 ```
+If you don't get any feedback this means the configuration is okay.
 
 - Restart the systemd service to pick up changes:
 
@@ -191,6 +217,8 @@ Repeat steps 2-12 i.e (creating and attaching EBS volumes, partitioning, LVM con
 - Mount the logical volume to a directory like /db instead of /var/www/html and db-lv instead of apps-lv.
 
 - There's no need to create a separate volume for logs on the database server.
+
+![Database Server Setup](images/Database-server-setup.png)
 
 ### Step 14 - Install and Configure MySQL (Database Server):
 
@@ -295,7 +323,7 @@ exit
 - By default, MySQL might only listen on localhost connections. To allow access from the web server, edit the MySQL configuration file:
 
 ```
-sudo vi /etc/mysql/my.cnf
+sudo vi /etc/mysql/mysql.conf.d/mysqld.cnf
 ```
 
 Find the line bind-address = 127.0.0.1 and either comment it out or replace it with bind-address = 0.0.0.0. The latter allows connections from any IP address, which is suitable for development purposes but use caution in a production environment. Consider restricting access to the web server's IP for improved security.
@@ -354,11 +382,6 @@ sudo systemctl start php-fpm
 sudo systemctl enable php-fpm
 ```
 
-- To ensure Apache has write access to the WordPress directory, change ownership to the Apache user:
-
-```
-sudo chown -R apache:apache /var/www/html/wordpress
-```
 
 - Create a directory to hold the downloaded WordPress files:
 
@@ -394,11 +417,18 @@ sudo rm -rf latest.tar.gz
 ```
 sudo cp wordpress/wp-config-sample.php wordpress/wp-config.php
 ```
+![alt text](images/wp-config.png)
 
 - Copy the entire WordPress directory structure to the web server's document root (/var/www/html):
 
 ```
-sudo cp -R wordpress/* /var/www/html/
+sudo cp -R /wordpress /var/www/html/
+```
+
+- To ensure Apache has write access to the WordPress directory, change ownership to the Apache user:
+
+```
+sudo chown -R apache:apache /var/www/html/wordpress
 ```
 
 - Restart the Apache web server to apply any configuration changes and make WordPress accessible:
@@ -409,7 +439,7 @@ sudo systemctl restart apache2
 
 ### Step 20 - Access WordPress Admin Panel:
 
-- Open a web browser and navigate to the public IP address or domain name of your web server instance, followed by /wp-admin. You should see the WordPress login screen.
+- Open a web browser and navigate to the public IP address or domain name of your web server instance, followed by /wordpress/wp-admin. You should see the WordPress login screen.
 
 - Use the MySQL username `(wordpress)` and password you created earlier to log in to the WordPress admin panel and complete the setup process.
 
