@@ -89,7 +89,9 @@ sudo systemctl status httpd
 
 ```
 sudo amazon-linux-extras install -y php7.4
+```
 
+```
 sudo yum install -y php php-mysqlnd php-fpm php-json
 ```
 
